@@ -1,0 +1,188 @@
+#!/bin/bash
+# 作者：老徐
+# SSR免费分享网站（所有帐号均来源于网上别人的分享）：http://ssr.pythonic.life
+# 源代码主页：https://github.com/the0demiurge
+# 访问https://github.com/the0demiurge/CharlesScripts/blob/master/charles/bin/ssr获取本脚本的最新版
+# 使用方法：把该脚本放到$PATH里面并加入可执行权限就行（比如说放到/usr/local/bin）
+# 首次使用输入ssr install后安装时会自动安装到 $HOME/.local/share/shadowsocksr
+# 输入ssr config进行配置，输入JSON格式的配置文件
+# 输入ssr uninstall卸载
+# 输入ssr help 展示帮助信息
+
+set -e
+if [ -z $EDITOR ];then
+    EDITOR=vi
+fi
+
+BRANCH=manyuser
+GIT_REPO=https://github.com/Awkee/shadowsocksr.git
+INSTALL_PATH=$HOME/.local/share/shadowsocksr
+PID_FILE=/tmp/ssr.pid
+LOG_FILE=/tmp/ssr.log
+PY_SCRIPT=ssr.py
+CONF_FILE=/tmp/ssr_config.json
+ssrip=freessr.ip
+ssrfree=freessr.me
+
+ssr_help() {
+    echo ShadowSocksR python client tool
+    echo -e if you have not install ssr, please run \"ssr install\"
+    echo Usage:
+    echo -e "\t" "ssr help"
+    echo -e "\t" "ssr install      install shadowsocksr client"
+    echo -e "\t" "ssr uninstall    uninstall shadowsocksr client"
+    echo -e "\t" "ssr config       edit config.json"
+    echo -e "\t" "ssr cat          cat config.json"
+    echo -e "\t" "ssr xclip        paste configs from clipboard to config.json"
+    echo -e "\t" "ssr start        start the shadowsocks service"
+    echo -e "\t" "ssr stop         stop the shadowsocks service"
+    echo -e "\t" "ssr restart      restart the shadowsocks service"
+    echo -e "\t" "ssr test         get ip from ip.cn using socks5 proxy"
+    echo -e "\t" "ssr log          cat the log of shadowsocks"
+    echo -e "\t" "ssr rss          cat the rss of shadowsocks"
+    echo -e "\t" "ssr qr           generate qr-code"
+    echo -e "\t" "ssr check        check all valid ssr ipaddress from freessr.list file to freessr.ip file"
+    echo -e "\t" "ssr path         show the ssr.py and ssr_check.py script path"
+}
+
+ssr_usage() {
+
+cat <<END
+
+ShadowSocksR python 客户端工具
+Usage:
+         ssr help
+         ssr install      安装SSR客户端,使用前需要提前安装
+         ssr uninstall    卸载SSR客户端
+         ssr config       编辑当前SSR服务正在使用的 config.json 文件,保存后自动重启 SSR服务
+         ssr cat          查看 config.json 信息
+         ssr xclip        复制 config.json 文件内容到剪切板
+         ssr start        启动SSR客户端服务
+         ssr stop         停止SSR客户端服务
+         ssr restart      重启SSR客户端服务
+         ssr test         测试当前SSR代理地址
+         ssr log          查看SSR运行日志信息
+         ssr rss          更新SSR订阅源信息
+         ssr check        检查订阅SSR的ssr连接是否有效以及延迟时间
+         ssr vi           手工编辑个人使用的连接串信息
+END
+}
+
+ssr_install() {
+    git clone -b $BRANCH $GIT_REPO $INSTALL_PATH
+}
+
+ssr_uninstall() {
+    echo "Danger! are you to remove $INSTALL_PATH forever?(y/N)"
+    read doit
+    if [ $doit == 'y' ];then rm -rvf $INSTALL_PATH;fi
+}
+
+ssr_test(){
+    echo Testing Connection...
+    curl ip.cn --socks5 'localhost:1080'
+}
+
+ssr_check(){
+    echo "Checking All valid ssr links!" 
+	if [ -r "$1" ] ; then
+		l_tmp_file=$1;
+	else
+		l_tmp_file=${INSTALL_PATH}/${ssrip}
+	fi
+    sudo ${INSTALL_PATH}/ssr_check.py ${l_tmp_file}.tmp |tee ${l_tmp_file}
+}
+
+ssr_start() {
+    cd $INSTALL_PATH/shadowsocks/
+    python ${PY_SCRIPT} -d start --pid-file $PID_FILE --log-file $LOG_FILE $@
+    sleep 1
+    ssr_test
+}
+
+ssr_stop() {
+    cd $INSTALL_PATH/shadowsocks/
+    python local.py -d stop --pid-file $PID_FILE --log-file $LOG_FILE 
+}
+
+ssr_restart() {
+    ssr_stop
+    ssr_start $@
+}
+
+ssr_config() {
+    $EDITOR ${CONF_FILE}
+    ssr_restart
+}
+
+ssr_xclip() {
+    xclip -o|tee ${CONF_FILE}
+    ssr_restart
+}
+
+ssr_cat()
+{
+	cat ${CONF_FILE}
+}
+ssr_log() {
+    tail -f ${LOG_FILE}
+}
+
+
+ssr_rss() {
+	ssrfile=freessr.txt
+	cd $INSTALL_PATH/
+	for fn in https://ssrshare.xyz/freessr https://yzzz.ml/freessr https://raw.githubusercontent.com/ImLaoD/sub/master/ssrshare.com
+	do
+		curl -L $fn  | base64 -d |grep ^ssr >> $ssrfile
+	done
+	sort -u $ssrfile > $ssrip".tmp"
+	rm -f $ssrfile
+}
+## 默认的SSR地址 ###
+default_ssr=ssr://MTcwLjE3OC4xNjcuMTQ5OjIzMzM6YXV0aF9jaGFpbl9iOm5vbmU6dGxzMS4yX3RpY2tldF9hdXRoOlpuSmxaUS8_b2Jmc3BhcmFtPSZwcm90b3BhcmFtPSZyZW1hcmtzPTVZV042TFM1NklxQzU0SzVMVU5vWVc1blpXbHdJRlZUTVEmZ3JvdXA9NVlXTjZMUzU2SXFDNTRLNQ
+
+
+ssr_main() {
+	str_type=$1;
+	if [ "$#" != "2" ] ; then
+		ssr_url=${default_ssr}
+	else
+		ssr_url=${2}
+	fi
+
+    case $str_type in
+        check|install|uninstall|rss|config|cat|xclip|stop|test|log) 
+			ssr_${str_type}     $@   
+		;;
+		start|restart)
+			ssr_${str_type} ${ssr_url} 
+		;; 
+		"")  echo "${ssr_url}" ;;
+		show) 
+			cat "${INSTALL_PATH}/${ssrip}" "${INSTALL_PATH}/${ssrfree}" 
+		;;
+		show1) 
+			cat "${INSTALL_PATH}/${ssrip}" 
+		;;
+		show2) 
+			cat "${INSTALL_PATH}/${ssrfree}" 
+		;;
+		vi) 
+			vi "${INSTALL_PATH}/${ssrfree}.tmp" 
+			ssr_check ${INSTALL_PATH}/${ssrfree}
+		;;
+		viip) 
+			vi "${INSTALL_PATH}/${ssrip}" 
+		;;
+		path)
+			echo "${INSTALL_PATH}/ssr_check.py"
+			echo "${INSTALL_PATH}/shadowsocks/ssr.py"
+		;;
+		*) ssr_usage;;
+    esac
+}
+
+ssr_main $@
+
+
