@@ -8,7 +8,7 @@
 
 import urllib2
 
-import sys 
+import sys
 import re
 import os
 
@@ -22,7 +22,7 @@ import argparse
 import atexit
 import json
 import base64
-from shadowsocks.local import main 
+from shadowsocks.local import main
 from urlparse import urlparse, parse_qs
 
 ssr_prefix = "ssr://"
@@ -47,12 +47,12 @@ def b64pading(enc):
 	if (len(enc) % 4) != 0 :
 		enc += '=' * (4 - (len(enc) % 4))
 		print("b64pading:[{0}]".format(enc))
-	
+
 	return enc
-	
+
 def decode_ssr_uri( ssr_uri_string ):
 	'''
-	decode shadowsocksR uri string , format like ssr://aldkfaldkfdlwofdfj...dfa= 
+	decode shadowsocksR uri string , format like ssr://aldkfaldkfdlwofdfj...dfa=
 	'''
 	ssr_encode_string = ""
 	ssr_decode_string = ""
@@ -66,13 +66,13 @@ def decode_ssr_uri( ssr_uri_string ):
 	if len(ssr_split_array) == 2 :
 		i1_ssr = base64.decodestring( b64pading( ssr_split_array[0] ) );
 		i2_ssr = base64.decodestring( b64pading( ssr_split_array[1] ) );
-		ssr_decode_string = "{0}?obfsparam={1}".format( i1_ssr , i2_ssr) 
+		ssr_decode_string = "{0}?obfsparam={1}".format( i1_ssr , i2_ssr)
 	else :
 		ssr_decode_string = base64.decodestring( b64pading(ssr_encode_string) )
 
 	print("ssr_decode_string:{0}".format(ssr_decode_string))
 
-	
+
 	ssr_decode_string = ssr_prefix + ssr_decode_string
 	ssr_params=parse_qs(urlparse(ssr_decode_string).query)
 	print("urlparse.netloc:{0}".format(urlparse(ssr_decode_string)))
@@ -83,7 +83,7 @@ def decode_ssr_uri( ssr_uri_string ):
 	server_ip , server_port , protocol, method ,obfs , password  = server_info[0], server_info[1],server_info[2],server_info[3],server_info[4],base64.decodestring( b64pading(server_info[5]) )
 	server_port = int(server_port)
 	## 参数设置
-	for i in [ 'remarks', 'group', 'obfs_param', 'protocol_param' ] :
+	for i in [ 'obfs_param', 'protocol_param' ] :
 		if i in ssr_params:
 			print('{0} = {1}'.format( i, b64pading(ssr_params[ i ][0])))
 			conf_json[ i ] = base64.decodestring( b64pading(ssr_params[ i ][0]))
@@ -92,7 +92,7 @@ def decode_ssr_uri( ssr_uri_string ):
 
 	conf_json['fast_open'] = False
 	conf_json['local_address'] = '0.0.0.0'
-	conf_json['local_port'] = 1080 
+	conf_json['local_port'] = 1080
 	conf_json['timeout'] = 600
 	conf_json['udp_timeout'] = 60
 	conf_json['dns_ipv6'] = False
@@ -116,16 +116,16 @@ def main_task():
 
 	args = get_parser()
 
-	## get the  qrcode url address 
+	## get the  qrcode url address
 	ss_url = args.ss_qrcode_url
 
-	## get the ss-uri string 
+	## get the ss-uri string
 	if ss_url.startswith(ssr_prefix) :
 		ss_uri = ss_url
 	else:
 		print("invalid ssr url,it should be started with ssr://")
 		sys.exit(1)
-	
+
 
 	## decode the ss-uri string
 	conf_json = decode_ssr_uri( ss_uri )
@@ -134,7 +134,7 @@ def main_task():
 	## 5.generate config.json file
 	args.config = os.path.realpath(args.config)
 	file_obj = open( args.config , 'w')
-	
+
 	jsonfile = json.dumps(conf_json,sort_keys=True, indent=4)
 	print("jsonfile:\n{0}\n".format(jsonfile))
 	file_obj.write(jsonfile)
@@ -143,7 +143,7 @@ def main_task():
 	## 设置执行参数 ###
 	sys.argv = [ sys.argv[0] , "-c" , args.config , '-d', args.daemon , '-q', '--pid-file', args.pid_file , '--log-file', args.log_file ]
 	if  args.quiet_mode :
-		sys.argv += "-q" 
+		sys.argv += "-q"
 	## 执行shadowsocks 主函数 ##
 	sys.exit(main())
 
