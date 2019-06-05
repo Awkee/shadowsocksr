@@ -11,7 +11,24 @@ import urllib
 import sys
 import re
 import os
-import ping
+import socket
+
+TCPsock = None
+
+
+def porttry( ip, port ):
+	'''
+	TCP connect port scanning
+	'''
+	try:
+		TCPsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		TCPsock.setsockopt( socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+		TCPsock.settimeout( 0.5 )
+		TCPsock.connect_ex(( ip , port) )
+		TCPsock.close()
+		return True
+	except:
+		return None
 
 if __name__ == '__main__':
 	import inspect
@@ -26,6 +43,7 @@ from urlparse import urlparse, parse_qs
 
 ssr_prefix = "ssr://"
 ssr_prefix_len = len(ssr_prefix)
+
 
 def get_parser():
 	parser = argparse.ArgumentParser(description = u"decode the ssr file and generate the valid ssr string for your shadowsocks client", epilog="this will help set the shadowsocks config.json faster.")
@@ -61,17 +79,19 @@ def decode_ssr_uri( ssr_uri_string ):
 
 	ssr_decode_string = ssr_prefix + ssr_decode_string
 	ssr_params=parse_qs(urlparse(ssr_decode_string).query)
-	# print("urlparse.netloc:{0}".format(urlparse(ssr_decode_string)))
+	#print("urlparse.netloc:{0}".format(urlparse(ssr_decode_string)))
 	result = urlparse(ssr_decode_string).netloc
 	## SSR格式：ssr://server:server_port:method:protocol:obfs:base64-encode-password/?obfsparam=base64-encode-string&protoparam=base64-encode-string&remarks=base64-encode-string&group=base64-encode-string
 	##服务端信息设置
 	server_info = result.split(':')
 	server_ip , server_port , protocol, method ,obfs  = server_info[0], server_info[1],server_info[2],server_info[3],server_info[4]
-
+	#print("{0} {1} {2}".format( server_ip , server_port ,  ssr_uri_string ))
 	try:
-		delay = ping.do_one( server_ip , 1 , 60 )
+		delay = porttry( server_ip , int(server_port) )
 		if delay != None :
-			print("{0} {1} {2:.5}s {3}".format( server_ip , server_port , delay, ssr_uri_string ))
+			print("{0} {1} open {2}".format( server_ip , server_port , ssr_uri_string ))
+		else :
+			print("{0} {1} close".format( server_ip , server_port ))
 	except :
 		pass
 	server_port = int(server_port)
